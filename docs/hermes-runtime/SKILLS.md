@@ -47,7 +47,9 @@ Skills are injected as **user messages** (not system prompt) to preserve prompt 
 3. The agent discovers it automatically on next session — no config change needed
 4. To attach to a cron job, add the skill name to the job's `skills` array in `cron/jobs.json`
 
-## Complete Skill Inventory (137 skills)
+## Complete Skill Inventory (153 skills across 31 categories)
+
+> **Note**: This inventory captures the majority of skills. Run `find ~/.hermes/skills -name 'SKILL.md' | wc -l` for the current exact count.
 
 ### apple (5) — macOS integrations
 | Skill | Description |
