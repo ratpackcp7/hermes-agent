@@ -49,4 +49,4 @@ Telegram/Discord/CLI/Workspace (port 3002)
 - **HMAC token flow** — don't modify auth without understanding self-verifying token generation in the workspace.
 - **Don't hardcode `~/.hermes`** — use `get_hermes_home()` from `hermes_constants.py` (supports profiles).
 - **Python venv required** — `source venv/bin/activate` before running any Python commands.
-- **Test suite**: `python -m pytest tests/ -q` (~3000 tests, ~3 min). Run full suite before pushing changes.
+- **Test suite**: `python -m pytest tests/ -q` (~7,500 tests across 369 files). Run relevant subset before pushing changes.
