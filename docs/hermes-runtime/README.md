@@ -24,7 +24,7 @@ Runtime data directory for the Hermes AI agent system. This is **not** the code 
 ├── response_store.db        # Response cache (20KB, currently empty)
 ├── workspace.db             # Workspace state (0 bytes, currently unused)
 │
-├── skills/                  # 31 category dirs, ~140+ skill definitions (SKILL.md + files)
+├── skills/                  # 31 category dirs, 153 skill definitions (SKILL.md + files)
 ├── memories/                # L1 memory: MEMORY.md (injected every turn), USER.md (user profile)
 ├── logs/                    # agent.log, gateway.log, errors.log, watchdog.log
 ├── cron/                    # jobs.json — scheduled cron job definitions
