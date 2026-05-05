@@ -468,3 +468,21 @@ python -m pytest tests/tools/ -q                 # Tool-level tests
 ```
 
 Always run the full suite before pushing changes.
+
+<!-- CP7-AGENT-STANDARDS:START -->
+
+## CP7 Agent Standard
+
+Before behavior changes, read `/home/chris/cp7-bridge/docs/agent-standards/AGENT-OPERATING-STANDARD.md`, this project's README/HANDOFF, and `docs/decisions/`.
+
+Create or update an ADR for changes to ports, bind addresses, tunnels, Docker Compose, volumes, healthchecks, systemd, timers, persistent data paths, MCP tools, auth, allowlists, writable roots, or unusual config.
+
+Every change report must include what changed, why, verification, rollback, and touched files/services.
+
+Verifier:
+
+```bash
+/home/chris/cp7-bridge/scripts/verify_agent_standards.sh
+```
+
+<!-- CP7-AGENT-STANDARDS:END -->

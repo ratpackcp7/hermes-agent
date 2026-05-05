@@ -219,12 +219,11 @@ async def discover_fallback_ips() -> list[str]:
         logger.debug("Discovered Telegram fallback IPs via DoH: %s", ", ".join(validated))
         return validated
 
-    logger.info(
-        "DoH discovery yielded no new IPs (system DNS: %s); using seed fallback IPs %s",
+    logger.warning(
+        "DoH discovery failed (system DNS: %s); skipping seed fallback IPs to prevent reconnect loops.",
         ", ".join(system_ips) or "unknown",
-        ", ".join(_SEED_FALLBACK_IPS),
     )
-    return list(_SEED_FALLBACK_IPS)
+    return []
 
 
 def _rewrite_request_for_ip(request: httpx.Request, ip: str) -> httpx.Request:
