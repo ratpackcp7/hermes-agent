@@ -26,6 +26,15 @@ try:
     HAS_CRONITER = True
 except ImportError:
     HAS_CRONITER = False
+    # croniter is a required dependency — its absence silently breaks all kind:cron jobs
+    # (next_run_at stays None forever and jobs never fire). Fail loudly at import time.
+    import warnings
+    warnings.warn(
+        "croniter is not installed. All kind:cron jobs will have next_run_at=None and "
+        "will never run. Install it with: pip install 'croniter>=6.0.0,<7'",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 # =============================================================================
 # Configuration
