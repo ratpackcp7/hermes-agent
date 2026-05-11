@@ -42,7 +42,7 @@ import uuid
 from typing import List, Dict, Any, Optional
 from openai import OpenAI
 import fire
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from hermes_constants import get_hermes_home
@@ -3549,11 +3549,17 @@ class AIAgent:
         return context
 
     def _usage_summary_for_api_request_hook(self, response: Any) -> Optional[Dict[str, Any]]:
-        """Token buckets for ``post_api_request`` plugins (no raw ``response`` object)."""
+        """Token buckets for ``post_api_request`` plugins (no raw ``response`` object).
+
+        Also captures OpenRouter generation telemetry to an append-only JSONL file.
+        Telemetry write failures are non-fatal.
+        """
         if response is None:
             return None
         raw_usage = getattr(response, "usage", None)
         if not raw_usage:
+            # Still attempt telemetry capture without usage
+            self._write_generation_telemetry(response, None)
             return None
         from dataclasses import asdict
 
@@ -3562,7 +3568,57 @@ class AIAgent:
         summary.pop("raw_usage", None)
         summary["prompt_tokens"] = cu.prompt_tokens
         summary["total_tokens"] = cu.total_tokens
+
+        # Capture telemetry alongside usage summary
+        self._write_generation_telemetry(response, cu)
         return summary
+
+    def _write_generation_telemetry(self, response: Any, usage: Any) -> None:
+        """Write an append-only generation telemetry record to JSONL.
+
+        Captures metadata only — no prompts, completions, or secrets.
+        Failures are logged and silently ignored (non-fatal).
+        """
+        try:
+            gen_id = getattr(response, "id", None)
+            if not gen_id:
+                return  # No generation ID available, skip
+
+            resp_model = getattr(response, "model", None) or "unknown"
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens = 0
+            if usage is not None:
+                prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+                completion_tokens = getattr(usage, "completion_tokens", 0) or 0
+                total_tokens = getattr(usage, "total_tokens", 0) or 0
+            elif hasattr(response, "usage") and response.usage:
+                raw_u = response.usage
+                prompt_tokens = getattr(raw_u, "prompt_tokens", 0) or 0
+                completion_tokens = getattr(raw_u, "completion_tokens", 0) or 0
+                total_tokens = getattr(raw_u, "total_tokens", 0) or 0
+
+            record = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "generation_id": gen_id,
+                "model": resp_model,
+                "requested_model": self.model if hasattr(self, "model") else None,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+                "provider": self.provider if hasattr(self, "provider") else None,
+                "source": "hermes",
+                "session_id": self.session_id if hasattr(self, "session_id") else None,
+            }
+
+            telemetry_dir = Path.home() / ".hermes" / "data"
+            telemetry_dir.mkdir(parents=True, exist_ok=True)
+            jsonl_path = telemetry_dir / "openrouter-generations.jsonl"
+
+            with open(jsonl_path, "a") as f:
+                f.write(json.dumps(record, default=str) + "\n")
+        except Exception:
+            logger.debug("Telemetry capture failed (non-fatal)", exc_info=True)
 
     def _dump_api_request_debug(
         self,
@@ -5874,9 +5930,14 @@ class AIAgent:
             role = "assistant"
             reasoning_parts: list = []
             usage_obj = None
+            stream_generation_id = None
             for chunk in stream:
                 last_chunk_time["t"] = time.time()
                 self._touch_activity("receiving stream response")
+
+                # Capture generation ID from the first chunk that has one
+                if not stream_generation_id and hasattr(chunk, "id") and chunk.id:
+                    stream_generation_id = chunk.id
 
                 if self._interrupt_requested:
                     break
@@ -6040,7 +6101,7 @@ class AIAgent:
                 finish_reason=effective_finish_reason,
             )
             return SimpleNamespace(
-                id="stream-" + str(uuid.uuid4()),
+                id=stream_generation_id or "stream-" + str(uuid.uuid4()),
                 model=model_name,
                 choices=[mock_choice],
                 usage=usage_obj,
