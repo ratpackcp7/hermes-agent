@@ -149,6 +149,24 @@ def _tui_embedded_pane_clarifier(hint: str) -> str:
     return hint + _TUI_EMBEDDED_PANE_CLARIFIER
 
 
+def _build_dispatch_system_prompt_parts(
+    agent: Any,
+    system_message: Optional[str] = None,
+) -> Dict[str, str]:
+    """Lean system prompt for Bob dispatch /v1/runs orchestrator mode."""
+    from agent.dispatch_mode import DISPATCH_ORCHESTRATOR_CONTRACT
+
+    stable_parts = [DEFAULT_AGENT_IDENTITY, DISPATCH_ORCHESTRATOR_CONTRACT]
+    context_parts: List[str] = []
+    if system_message is not None:
+        context_parts.append(system_message)
+    return {
+        "stable": "\n\n".join(stable_parts),
+        "context": "\n\n".join(p for p in context_parts if p and p.strip()),
+        "volatile": "",
+    }
+
+
 def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) -> Dict[str, str]:
     """Assemble the system prompt as three ordered cache tiers.
 
@@ -167,6 +185,9 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     session — that's the only way to keep upstream prompt caches
     warm across turns.
     """
+    if getattr(agent, "dispatch_mode", False):
+        return _build_dispatch_system_prompt_parts(agent, system_message)
+
     # Local import to avoid pulling model_tools at module load.  Tests
     # patch ``run_agent.get_toolset_for_tool`` and similar helpers, so
     # we resolve through ``_ra()`` to honor those patches.

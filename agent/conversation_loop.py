@@ -2099,6 +2099,33 @@ def run_conversation(
                     int(getattr(_compressor, "threshold_tokens", 0) or 0),
                 )
         
+        # Dispatch preflight budget (Bob /v1/runs orchestrator fast path).
+        if getattr(agent, "dispatch_mode", False):
+            from agent.dispatch_mode import (
+                check_dispatch_preflight_before_api_call,
+                format_budget_exceeded_message,
+            )
+
+            _dispatch_budget_failure = check_dispatch_preflight_before_api_call(
+                agent,
+                next_call_number=api_call_count,
+                messages=api_messages,
+                tools=tools_for_api,
+                system_prompt=effective_system,
+            )
+            if _dispatch_budget_failure is not None:
+                final_response = format_budget_exceeded_message(_dispatch_budget_failure)
+                failed = True
+                _turn_exit_reason = "dispatch_preflight_budget_exceeded"
+                messages.append({"role": "assistant", "content": final_response})
+                api_call_count -= 1
+                agent._api_call_count = api_call_count
+                try:
+                    agent.iteration_budget.refund()
+                except Exception:
+                    pass
+                break
+
         # Thinking spinner for quiet mode (animated during API call)
         thinking_spinner = None
         
@@ -6363,6 +6390,10 @@ def run_conversation(
                         pass
 
                 agent._execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count)
+
+                from agent.dispatch_mode import note_dispatch_tool_calls
+
+                note_dispatch_tool_calls(agent, assistant_message)
 
                 if getattr(agent, "_incremental_persistence_failed", False):
                     # A tool result could not be made canonical. Do not send

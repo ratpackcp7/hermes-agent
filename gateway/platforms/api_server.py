@@ -2537,6 +2537,7 @@ class APIServerAdapter(BasePlatformAdapter):
         route: Optional[Dict[str, Any]] = None,
         session_model: Optional[str] = None,
         confirmed_runtime_lock: bool = False,
+        dispatch_mode_config: Optional[Any] = None,
     ) -> Any:
         """
         Create an AIAgent instance using the gateway's runtime config.
@@ -2839,7 +2840,18 @@ class APIServerAdapter(BasePlatformAdapter):
         if request_service_tier is not _REQUEST_OPTION_MISSING:
             agent_kwargs["service_tier"] = request_service_tier
 
+        if dispatch_mode_config is not None and getattr(
+            dispatch_mode_config, "enabled", False
+        ):
+            from agent.dispatch_mode import apply_dispatch_agent_kwargs, attach_dispatch_mode
+
+            agent_kwargs = apply_dispatch_agent_kwargs(agent_kwargs, dispatch_mode_config)
+
         agent = AIAgent(**agent_kwargs)
+        if dispatch_mode_config is not None and getattr(
+            dispatch_mode_config, "enabled", False
+        ):
+            attach_dispatch_mode(agent, dispatch_mode_config)
         agent._hermes_api_runtime = {
             "provider": runtime_kwargs.get("provider") or getattr(agent, "provider", "") or "",
             "model": getattr(agent, "model", None) or model,
@@ -6370,6 +6382,14 @@ class APIServerAdapter(BasePlatformAdapter):
 
         session_id = body.get("session_id") or stored_session_id
         route = self._resolve_route(body.get("model"))
+        from agent.dispatch_mode import parse_dispatch_mode_request
+
+        dispatch_mode_config, dispatch_parse_error = parse_dispatch_mode_request(
+            body, request.headers
+        )
+        if dispatch_parse_error:
+            return web.json_response(_openai_error(dispatch_parse_error), status=400)
+
         agent_overrides = _request_agent_overrides(body, virtual_model=self._model_name)
         selection_error = self._request_route_conflict_error(
             session_id=session_id,
@@ -6458,6 +6478,7 @@ class APIServerAdapter(BasePlatformAdapter):
                         requested_provider=agent_overrides.get("requested_provider"),
                         model_options=agent_overrides.get("model_options"),
                         route=route,
+                        dispatch_mode_config=dispatch_mode_config,
                     )
                 self._active_run_agents[run_id] = agent
 
