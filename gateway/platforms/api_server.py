@@ -586,6 +586,7 @@ class APIServerAdapter(BasePlatformAdapter):
         session_id: Optional[str] = None,
         stream_delta_callback=None,
         tool_progress_callback=None,
+        dispatch_mode_config: Optional[Any] = None,
     ) -> Any:
         """
         Create an AIAgent instance using the gateway's runtime config.
@@ -625,21 +626,34 @@ class APIServerAdapter(BasePlatformAdapter):
         from gateway.run import GatewayRunner
         fallback_model = GatewayRunner._load_fallback_model()
 
-        agent = AIAgent(
-            model=model,
+        agent_kwargs = {
+            "model": model,
             **runtime_kwargs,
-            max_iterations=max_iterations,
-            quiet_mode=True,
-            verbose_logging=False,
-            ephemeral_system_prompt=ephemeral_system_prompt or None,
-            enabled_toolsets=enabled_toolsets,
-            session_id=session_id,
-            platform="api_server",
-            stream_delta_callback=stream_delta_callback,
-            tool_progress_callback=tool_progress_callback,
-            session_db=self._ensure_session_db(),
-            fallback_model=fallback_model,
-        )
+            "max_iterations": max_iterations,
+            "quiet_mode": True,
+            "verbose_logging": False,
+            "ephemeral_system_prompt": ephemeral_system_prompt or None,
+            "enabled_toolsets": enabled_toolsets,
+            "session_id": session_id,
+            "platform": "api_server",
+            "stream_delta_callback": stream_delta_callback,
+            "tool_progress_callback": tool_progress_callback,
+            "session_db": self._ensure_session_db(),
+            "fallback_model": fallback_model,
+        }
+
+        if dispatch_mode_config is not None and getattr(
+            dispatch_mode_config, "enabled", False
+        ):
+            from agent.dispatch_mode import apply_dispatch_agent_kwargs, attach_dispatch_mode
+
+            agent_kwargs = apply_dispatch_agent_kwargs(agent_kwargs, dispatch_mode_config)
+
+        agent = AIAgent(**agent_kwargs)
+        if dispatch_mode_config is not None and getattr(
+            dispatch_mode_config, "enabled", False
+        ):
+            attach_dispatch_mode(agent, dispatch_mode_config)
         return agent
 
     # ------------------------------------------------------------------
@@ -2439,6 +2453,14 @@ class APIServerAdapter(BasePlatformAdapter):
         session_id = body.get("session_id") or run_id
         ephemeral_system_prompt = instructions
 
+        from agent.dispatch_mode import parse_dispatch_mode_request
+
+        dispatch_mode_config, dispatch_parse_error = parse_dispatch_mode_request(
+            body, request.headers
+        )
+        if dispatch_parse_error:
+            return web.json_response(_openai_error(dispatch_parse_error), status=400)
+
         async def _run_and_close():
             try:
                 agent = self._create_agent(
@@ -2446,6 +2468,7 @@ class APIServerAdapter(BasePlatformAdapter):
                     session_id=session_id,
                     stream_delta_callback=_text_cb,
                     tool_progress_callback=event_cb,
+                    dispatch_mode_config=dispatch_mode_config,
                 )
                 def _run_sync():
                     r = agent.run_conversation(
