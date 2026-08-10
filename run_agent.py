@@ -2113,7 +2113,7 @@ class AIAgent:
             import contextlib, os as _os
             review_agent = None
             try:
-                with open(_os.devnull, "w") as _devnull, \
+                with open(_os.devnull, "w", encoding="utf-8") as _devnull, \
                      contextlib.redirect_stdout(_devnull), \
                      contextlib.redirect_stderr(_devnull):
                     review_agent = AIAgent(
