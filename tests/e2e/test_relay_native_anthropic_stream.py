@@ -60,7 +60,7 @@ data: {"type":"message_stop"}
     agent.api_mode = "anthropic_messages"
     agent.session_id = "anthropic-relay-session"
     agent._interrupt_requested = False
-    agent._create_request_anthropic_client = lambda *args, **kwargs: client
+    agent._anthropic_client = client
     lease = relay_runtime.SESSION_COORDINATOR.acquire_conversation(
         profile_key=relay_runtime.current_profile_key(),
         session_id=agent.session_id,
