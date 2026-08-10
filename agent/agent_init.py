@@ -1422,6 +1422,18 @@ def init_agent(
     # Get available tools with filtering. Capture the registry generation this
     # snapshot is derived from FIRST, so a later concurrent refresh can tell
     # whether it holds a newer or staler view (see refresh_agent_mcp_tools).
+    from agent.dispatch_orchestrator import (
+        DispatchPreflightBudget,
+        apply_dispatch_toolset_pin,
+        is_dispatch_orchestrator_mode,
+    )
+    agent._dispatch_orchestrator_mode = is_dispatch_orchestrator_mode()
+    if agent._dispatch_orchestrator_mode:
+        enabled_toolsets = apply_dispatch_toolset_pin(enabled_toolsets)
+        agent.enabled_toolsets = enabled_toolsets
+        agent._dispatch_preflight_budget = DispatchPreflightBudget.from_config()
+    else:
+        agent._dispatch_preflight_budget = None
     try:
         from tools.registry import registry as _snapshot_registry
         agent._tool_snapshot_generation = _snapshot_registry._generation

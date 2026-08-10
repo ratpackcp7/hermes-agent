@@ -167,6 +167,12 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     session — that's the only way to keep upstream prompt caches
     warm across turns.
     """
+    from agent.dispatch_orchestrator import (
+        build_dispatch_system_prompt_parts,
+        is_dispatch_orchestrator_mode,
+    )
+    if is_dispatch_orchestrator_mode():
+        return build_dispatch_system_prompt_parts(agent, system_message=system_message)
     # Local import to avoid pulling model_tools at module load.  Tests
     # patch ``run_agent.get_toolset_for_tool`` and similar helpers, so
     # we resolve through ``_ra()`` to honor those patches.

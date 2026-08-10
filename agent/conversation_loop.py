@@ -1438,6 +1438,30 @@ def run_conversation(
         agent._api_call_count = api_call_count
         agent._touch_activity(f"starting API call #{api_call_count}")
 
+        _dispatch_budget = getattr(agent, "_dispatch_preflight_budget", None)
+        if _dispatch_budget is not None:
+            from agent.dispatch_orchestrator import (
+                DISPATCH_PREFLIGHT_BUDGET_EXCEEDED,
+                session_dispatched_worker,
+            )
+            if session_dispatched_worker(messages):
+                _dispatch_budget.worker_dispatched = True
+            if not _dispatch_budget.worker_dispatched:
+                _budget_msg = _dispatch_budget.check_preflight(
+                    messages=messages,
+                    tool_schemas=getattr(agent, "tools", None) or [],
+                    system_prompt=getattr(agent, "_cached_system_prompt", "") or "",
+                )
+                if _budget_msg and _budget_msg.startswith(DISPATCH_PREFLIGHT_BUDGET_EXCEEDED):
+                    _turn_exit_reason = "dispatch_preflight_budget_exceeded"
+                    return {
+                        "final_response": _budget_msg,
+                        "messages": messages,
+                        "interrupted": False,
+                        "api_calls": api_call_count,
+                        "completed": False,
+                    }
+
         # Grace call: the budget is exhausted but we gave the model one
         # more chance.  Consume the grace flag so the loop exits after
         # this iteration regardless of outcome.

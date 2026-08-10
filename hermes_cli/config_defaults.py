@@ -1661,6 +1661,19 @@ DEFAULT_CONFIG = {
         "provider": "",
     },
 
+    # Dispatch/orchestrator fast-path — lean mode for Bob/Foreman pre-dispatch.
+    # Off by default; does not change normal interactive Hermes when false.
+    "dispatch": {
+        "orchestrator_mode": False,
+        # Hard pre-dispatch input token ceiling (estimated).
+        "preflight_token_ceiling": 25000,
+        # First model-call input target (estimated). May exceed when tool
+        # schemas dominate — measured ceilings are documented in tests.
+        "first_call_token_target": 10000,
+        # Worker dispatched or actionable blocker within this many model calls.
+        "max_preflight_model_calls": 5,
+    },
+
     # Subagent delegation — override the provider:model used by delegate_task
     # so child agents can run on a different (cheaper/faster) provider and model.
     # Uses the same runtime provider resolution as CLI/gateway startup, so all

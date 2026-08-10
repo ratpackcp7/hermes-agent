@@ -732,6 +732,12 @@ try:
                 _early_redact = _early_sec_cfg.get("redact_secrets")
                 if _early_redact is not None:
                     os.environ["HERMES_REDACT_SECRETS"] = str(_early_redact).lower()
+        if "HERMES_DISPATCH_MODE" not in os.environ:
+            _early_dispatch_cfg = _early_cfg_raw.get("dispatch", {})
+            if isinstance(_early_dispatch_cfg, dict):
+                _early_dispatch_mode = _early_dispatch_cfg.get("orchestrator_mode")
+                if _early_dispatch_mode:
+                    os.environ["HERMES_DISPATCH_MODE"] = "1"
         _early_net_cfg = _early_cfg_raw.get("network", {})
         if isinstance(_early_net_cfg, dict) and _early_net_cfg.get("force_ipv4"):
             _FORCE_IPV4_EARLY = True

@@ -304,6 +304,24 @@ TOOLSETS = {
         "includes": [],
     },
 
+    "dispatch_orchestrator": {
+        "description": (
+            "Dispatch/orchestrator lean toolset — only active when "
+            "dispatch.orchestrator_mode is enabled (or HERMES_DISPATCH_MODE). "
+            "Orchestration-only: focused read/search, bounded shell, worker "
+            "dispatch, compact skills. Excludes web, browser, vision, "
+            "messaging, and implementation tools."
+        ),
+        "tools": [
+            "read_file", "search_files",
+            "terminal", "process",
+            "delegate_task",
+            "skills_list", "skill_view",
+            "clarify",
+        ],
+        "includes": [],
+    },
+
     "discord": {
         "description": "Discord read and participate tools (fetch messages, search members, create threads)",
         "tools": ["discord"],

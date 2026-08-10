@@ -399,6 +399,15 @@ def _compute_tool_definitions(
             # (for token/cost reasons), but that should not strip the kanban
             # worker's completion/block/heartbeat surface.
             effective_enabled_toolsets.append("kanban")
+        from agent.dispatch_orchestrator import (
+            DISPATCH_TOOLSET_NAME,
+            is_dispatch_orchestrator_mode,
+        )
+        if (
+            is_dispatch_orchestrator_mode()
+            and DISPATCH_TOOLSET_NAME not in effective_enabled_toolsets
+        ):
+            effective_enabled_toolsets.append(DISPATCH_TOOLSET_NAME)
         for toolset_name in effective_enabled_toolsets:
             if validate_toolset(toolset_name):
                 resolved = resolve_toolset(toolset_name)
