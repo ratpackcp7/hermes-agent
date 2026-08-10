@@ -3046,6 +3046,14 @@ class AIAgent:
         rebuilt after context compression events. This ensures the system prompt
         is stable across all turns in a session, maximizing prefix cache hits.
         """
+        if getattr(self, "dispatch_mode", False):
+            from agent.dispatch_mode import build_dispatch_system_prompt_parts
+
+            parts = build_dispatch_system_prompt_parts(self, system_message)
+            return "\n\n".join(
+                p for p in (parts.get("stable"), parts.get("context")) if p and p.strip()
+            )
+
         # Layers (in order):
         #   1. Agent identity — SOUL.md when available, else DEFAULT_AGENT_IDENTITY
         #   2. User / gateway system prompt (if provided)
@@ -8050,6 +8058,29 @@ class AIAgent:
                     new_tcs.append(tc)
                 am["tool_calls"] = new_tcs
 
+            # Dispatch preflight budget (Bob /v1/runs orchestrator fast path).
+            if getattr(self, "dispatch_mode", False):
+                from agent.dispatch_mode import (
+                    check_dispatch_preflight_before_api_call,
+                    format_budget_exceeded_message,
+                )
+
+                _dispatch_budget_failure = check_dispatch_preflight_before_api_call(
+                    self,
+                    next_call_number=api_call_count,
+                    messages=api_messages,
+                    tools=self.tools,
+                    system_prompt=effective_system,
+                )
+                if _dispatch_budget_failure is not None:
+                    final_response = format_budget_exceeded_message(_dispatch_budget_failure)
+                    failed = True
+                    _turn_exit_reason = "dispatch_preflight_budget_exceeded"
+                    messages.append({"role": "assistant", "content": final_response})
+                    api_call_count -= 1
+                    self._api_call_count = api_call_count
+                    break
+
             # Calculate approximate request size for logging
             total_chars = sum(len(str(msg)) for msg in api_messages)
             approx_tokens = estimate_messages_tokens_rough(api_messages)
@@ -9751,6 +9782,10 @@ class AIAgent:
                             pass
 
                     self._execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count)
+
+                    from agent.dispatch_mode import note_dispatch_tool_calls
+
+                    note_dispatch_tool_calls(self, assistant_message)
 
                     # Reset per-turn retry counters after successful tool
                     # execution so a single truncation doesn't poison the
