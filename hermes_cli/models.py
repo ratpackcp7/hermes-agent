@@ -1280,6 +1280,7 @@ def group_providers(slugs):
 
 
 _PROVIDER_ALIASES = {
+    "openai": "openai-codex",
     "glm": "zai",
     "z-ai": "zai",
     "z.ai": "zai",
